@@ -32,12 +32,13 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	pb "github.com/golang/groupcache/groupcachepb"
-	testpb "github.com/golang/groupcache/testpb"
+	"github.com/golang/groupcache/testpb"
 )
 
 var (
-	once                    sync.Once
-	stringGroup, protoGroup Getter
+	once        sync.Once
+	stringGroup Getter
+	protoGroup  Getter
 
 	stringc = make(chan string)
 

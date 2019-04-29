@@ -36,18 +36,14 @@ import (
 	"github.com/golang/groupcache/singleflight"
 )
 
-// A Getter loads data for a key.
+// Getter接口提供方法获取某个key对应的值
+// 主要用于在未命中本地缓存且key是属于本地负责缓存的时候，从指定地方
+// 获取key对应的value的方法，指定地方包括数据库、http api接口等等
 type Getter interface {
-	// Get returns the value identified by key, populating dest.
-	//
-	// The returned data must be unversioned. That is, key must
-	// uniquely describe the loaded data, without an implicit
-	// current time, and without relying on cache expiration
-	// mechanisms.
 	Get(ctx Context, key string, dest Sink) error
 }
 
-// A GetterFunc implements Getter with a function.
+// 调用的时候可以直接传入GetterFunc，因为GetterFunc实现了Getter接口
 type GetterFunc func(ctx Context, key string, dest Sink) error
 
 func (f GetterFunc) Get(ctx Context, key string, dest Sink) error {
@@ -55,15 +51,20 @@ func (f GetterFunc) Get(ctx Context, key string, dest Sink) error {
 }
 
 var (
-	mu     sync.RWMutex
+	// 全局读写锁
+	mu sync.RWMutex
+
+	// 存储Group对象的哈希表
 	groups = make(map[string]*Group)
 
+	// 保证初始化服务器函数只执行1次
 	initPeerServerOnce sync.Once
-	initPeerServer     func()
+
+	// 初始化服务器的函数
+	initPeerServer func()
 )
 
-// GetGroup returns the named group previously created with NewGroup, or
-// nil if there's no such group.
+// 根据名称获取Group结构
 func GetGroup(name string) *Group {
 	mu.RLock()
 	g := groups[name]
@@ -71,15 +72,9 @@ func GetGroup(name string) *Group {
 	return g
 }
 
-// NewGroup creates a coordinated group-aware Getter from a Getter.
-//
-// The returned Getter tries (but does not guarantee) to run only one
-// Get call at once for a given key across an entire set of peer
-// processes. Concurrent callers both in the local process and in
-// other processes receive copies of the answer once the original Get
-// completes.
-//
-// The group name must be unique for each getter.
+// 创建一个相互协调的Getter
+// Getter尝试（不保证）在分布式读取过程中只执行1次
+// 在本地进程与其他进程的并发请求能获取相同的响应拷贝
 func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 	return newGroup(name, cacheBytes, getter, nil)
 }
@@ -136,14 +131,14 @@ func callInitPeerServer() {
 	}
 }
 
-// A Group is a cache namespace and associated data loaded spread over
-// a group of 1 or more machines.
+// Group是缓存的命名空间，用于隔离一个Group的机器和数据
 type Group struct {
-	name       string
-	getter     Getter
-	peersOnce  sync.Once
-	peers      PeerPicker
-	cacheBytes int64 // limit for sum of mainCache and hotCache size
+	name      string
+	getter    Getter
+	peersOnce sync.Once
+	peers     PeerPicker
+	// mainCache和hotCache的大小限制
+	cacheBytes int64
 
 	// mainCache is a cache of the keys for which this process
 	// (amongst its peers) is authoritative. That is, this cache

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package consistenthash provides an implementation of a ring hash.
+// 一致性哈希算法的实现
 package consistenthash
 
 import (
@@ -25,54 +25,56 @@ import (
 
 type Hash func(data []byte) uint32
 
+// 哈希环数据结构
 type Map struct {
-	hash     Hash
-	replicas int
-	keys     []int // Sorted
-	hashMap  map[int]string
+	hash     Hash           // 哈希算法
+	replicas int            // 为了让服务节点更加分散
+	keys     []int          // 哈希值列表
+	hashMap  map[int]string // 哈希值对应的服务节点
 }
 
+// 创建哈希环数据结构
 func New(replicas int, fn Hash) *Map {
 	m := &Map{
 		replicas: replicas,
 		hash:     fn,
 		hashMap:  make(map[int]string),
 	}
+	// 默认使用的哈希算法：crc32.ChecksumIEEE
 	if m.hash == nil {
 		m.hash = crc32.ChecksumIEEE
 	}
 	return m
 }
 
-// Returns true if there are no items available.
+// 判断节点个数是否为0
 func (m *Map) IsEmpty() bool {
 	return len(m.keys) == 0
 }
 
-// Adds some keys to the hash.
+// 增加节点到哈希环
 func (m *Map) Add(keys ...string) {
 	for _, key := range keys {
 		for i := 0; i < m.replicas; i++ {
+			// 节点的字符串添加replica，为了哈希值的分散
 			hash := int(m.hash([]byte(strconv.Itoa(i) + key)))
 			m.keys = append(m.keys, hash)
 			m.hashMap[hash] = key
 		}
 	}
+	// 将哈希值列表升序便于搜索
 	sort.Ints(m.keys)
 }
 
-// Gets the closest item in the hash to the provided key.
+// 获取key哈希值对应的服务节点
 func (m *Map) Get(key string) string {
 	if m.IsEmpty() {
 		return ""
 	}
 
+	// 哈希列表中找到比key的哈希值大的第1个值
 	hash := int(m.hash([]byte(key)))
-
-	// Binary search for appropriate replica.
 	idx := sort.Search(len(m.keys), func(i int) bool { return m.keys[i] >= hash })
-
-	// Means we have cycled back to the first replica.
 	if idx == len(m.keys) {
 		idx = 0
 	}

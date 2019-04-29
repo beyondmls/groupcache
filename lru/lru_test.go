@@ -37,10 +37,15 @@ var getTests = []struct {
 	keyToGet   interface{}
 	expectedOk bool
 }{
+	// 字符串命中缓存测试
 	{"string_hit", "myKey", "myKey", true},
+	// 字符串未命中缓存测试
 	{"string_miss", "myKey", "nonsense", false},
+	// 结构命中缓存测试
 	{"simple_struct_hit", simpleStruct{1, "two"}, simpleStruct{1, "two"}, true},
+	// 结构未命中缓存测试
 	{"simple_struct_miss", simpleStruct{1, "two"}, simpleStruct{0, "noway"}, false},
+	// 嵌套结构命中缓存测试
 	{"complex_struct_hit", complexStruct{1, simpleStruct{2, "three"}},
 		complexStruct{1, simpleStruct{2, "three"}}, true},
 }

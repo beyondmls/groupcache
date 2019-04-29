@@ -14,45 +14,49 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package singleflight provides a duplicate function call suppression
-// mechanism.
+// 控制重复的请求只执行1次
 package singleflight
 
 import "sync"
 
-// call is an in-flight or completed Do call
+// 执行中或者执行完成的结果
 type call struct {
 	wg  sync.WaitGroup
 	val interface{}
 	err error
 }
 
-// Group represents a class of work and forms a namespace in which
-// units of work can be executed with duplicate suppression.
+// Group代表重复请求的一组操作
 type Group struct {
-	mu sync.Mutex       // protects m
-	m  map[string]*call // lazily initialized
+	mu sync.Mutex
+	m  map[string]*call
 }
 
-// Do executes and returns the results of the given function, making
-// sure that only one execution is in-flight for a given key at a
-// time. If a duplicate comes in, the duplicate caller waits for the
-// original to complete and receives the same results.
+// 保证对同一个key的请求不会出现并发重复操作
+// 如果存在重复请求，等待上一个操作完成返回相同响应
 func (g *Group) Do(key string, fn func() (interface{}, error)) (interface{}, error) {
+	// 加锁操作
 	g.mu.Lock()
+
+	// 延迟初始化
 	if g.m == nil {
 		g.m = make(map[string]*call)
 	}
+
+	// 如果存在重复请求，阻塞，等待WaitGroup Done，返回响应和错误
 	if c, ok := g.m[key]; ok {
 		g.mu.Unlock()
 		c.wg.Wait()
 		return c.val, c.err
 	}
+
+	// 如果不存在重复请求，创建Call结构和WaitGroup
 	c := new(call)
 	c.wg.Add(1)
 	g.m[key] = c
 	g.mu.Unlock()
 
+	// 执行请求操作，完成之后删除对应的哈希表记录
 	c.val, c.err = fn()
 	c.wg.Done()
 

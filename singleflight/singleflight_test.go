@@ -25,6 +25,7 @@ import (
 	"time"
 )
 
+// 测试请求返回响应
 func TestDo(t *testing.T) {
 	var g Group
 	v, err := g.Do("key", func() (interface{}, error) {
@@ -38,6 +39,7 @@ func TestDo(t *testing.T) {
 	}
 }
 
+// 测试请求返回err
 func TestDoErr(t *testing.T) {
 	var g Group
 	someErr := errors.New("Some error")
@@ -52,15 +54,18 @@ func TestDoErr(t *testing.T) {
 	}
 }
 
+// 测试重复请求返回相同响应
 func TestDoDupSuppress(t *testing.T) {
-	var g Group
-	c := make(chan string)
+	// 每执行1次就递增1，记录执行次数
+	channel := make(chan string)
 	var calls int32
 	fn := func() (interface{}, error) {
 		atomic.AddInt32(&calls, 1)
-		return <-c, nil
+		return <-channel, nil
 	}
 
+	// 10个协程并发执行函数
+	var g Group
 	const n = 10
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
@@ -76,9 +81,13 @@ func TestDoDupSuppress(t *testing.T) {
 			wg.Done()
 		}()
 	}
-	time.Sleep(100 * time.Millisecond) // let goroutines above block
-	c <- "bar"
+
+	// channel的作用是确保10个协程不会串行
+	time.Sleep(100 * time.Millisecond)
+	channel <- "bar"
 	wg.Wait()
+
+	// 判断调用次数是否大于1（重复执行）
 	if got := atomic.LoadInt32(&calls); got != 1 {
 		t.Errorf("number of calls = %d; want 1", got)
 	}

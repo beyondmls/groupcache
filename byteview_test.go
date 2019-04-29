@@ -24,6 +24,22 @@ import (
 	"testing"
 )
 
+// 构建ByteView结构
+func of(x interface{}) ByteView {
+	if bytes, ok := x.([]byte); ok {
+		return ByteView{b: bytes}
+	}
+	return ByteView{s: x.(string)}
+}
+
+// 获取2个整型最小的值
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func TestByteView(t *testing.T) {
 	for _, s := range []string{"", "x", "yy"} {
 		for _, v := range []ByteView{of([]byte(s)), of(s)} {
@@ -56,18 +72,11 @@ func TestByteView(t *testing.T) {
 	}
 }
 
-// of returns a byte view of the []byte or string in x.
-func of(x interface{}) ByteView {
-	if bytes, ok := x.([]byte); ok {
-		return ByteView{b: bytes}
-	}
-	return ByteView{s: x.(string)}
-}
-
+// 测试ByteView结构相等
 func TestByteViewEqual(t *testing.T) {
 	tests := []struct {
-		a    interface{} // string or []byte
-		b    interface{} // string or []byte
+		a    interface{}
+		b    interface{}
 		want bool
 	}{
 		{"x", "x", true},
@@ -100,29 +109,17 @@ func TestByteViewEqual(t *testing.T) {
 	}
 }
 
+// 测试ByteView切片
 func TestByteViewSlice(t *testing.T) {
 	tests := []struct {
 		in   string
 		from int
-		to   interface{} // nil to mean the end (SliceFrom); else int
+		to   interface{}
 		want string
 	}{
-		{
-			in:   "abc",
-			from: 1,
-			to:   2,
-			want: "b",
-		},
-		{
-			in:   "abc",
-			from: 1,
-			want: "bc",
-		},
-		{
-			in:   "abc",
-			to:   2,
-			want: "ab",
-		},
+		{in: "abc", from: 1, to: 2, want: "b"},
+		{in: "abc", from: 1, want: "bc"},
+		{in: "abc", to: 2, want: "ab"},
 	}
 	for i, tt := range tests {
 		for _, v := range []ByteView{of([]byte(tt.in)), of(tt.in)} {
@@ -137,11 +134,4 @@ func TestByteViewSlice(t *testing.T) {
 			}
 		}
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

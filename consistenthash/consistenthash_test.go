@@ -24,8 +24,7 @@ import (
 
 func TestHashing(t *testing.T) {
 
-	// Override the hash function to return easier to reason about values. Assumes
-	// the keys can be converted to an integer.
+	//  使用一个简化哈希函数，将字符串转换为整型
 	hash := New(3, func(key []byte) uint32 {
 		i, err := strconv.Atoi(string(key))
 		if err != nil {
@@ -34,10 +33,10 @@ func TestHashing(t *testing.T) {
 		return uint32(i)
 	})
 
-	// Given the above hash function, this will give replicas with "hashes":
-	// 2, 4, 6, 12, 14, 16, 22, 24, 26
+	// 添加节点[6,4,2]，在哈希环生成[2, 4, 6, 12, 14, 16, 22, 24, 26]
 	hash.Add("6", "4", "2")
 
+	// 测试的输入变量与期望输出
 	testCases := map[string]string{
 		"2":  "2",
 		"11": "2",
@@ -51,10 +50,10 @@ func TestHashing(t *testing.T) {
 		}
 	}
 
-	// Adds 8, 18, 28
+	// 再添加节点[8]
 	hash.Add("8")
 
-	// 27 should now map to 8.
+	// 测试的输入变量与期望输出
 	testCases["27"] = "8"
 
 	for k, v := range testCases {
@@ -62,13 +61,13 @@ func TestHashing(t *testing.T) {
 			t.Errorf("Asking for %s, should have yielded %s", k, v)
 		}
 	}
-
 }
 
 func TestConsistency(t *testing.T) {
 	hash1 := New(1, nil)
 	hash2 := New(1, nil)
 
+	// 测试相同节点在2个哈希环的输出结果
 	hash1.Add("Bill", "Bob", "Bonny")
 	hash2.Add("Bob", "Bonny", "Bill")
 
@@ -76,6 +75,7 @@ func TestConsistency(t *testing.T) {
 		t.Errorf("Fetching 'Ben' from both hashes should be the same")
 	}
 
+	// 测试不同节点在2个哈希环的输出结果
 	hash2.Add("Becky", "Ben", "Bobby")
 
 	if hash1.Get("Ben") != hash2.Get("Ben") ||
@@ -91,6 +91,7 @@ func BenchmarkGet32(b *testing.B)  { benchmarkGet(b, 32) }
 func BenchmarkGet128(b *testing.B) { benchmarkGet(b, 128) }
 func BenchmarkGet512(b *testing.B) { benchmarkGet(b, 512) }
 
+// 哈希环在不同数量的节点下的性能测试
 func benchmarkGet(b *testing.B, shards int) {
 
 	hash := New(50, nil)
